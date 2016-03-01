@@ -1,0 +1,159 @@
+ function getAllNodes(fileStr)
+  local listOfNodes = {}
+	local node = {}
+	local index = 1
+	local maxValue = 0
+	while string.match(fileStr, '(' .. index .. ', %d+, %d+)') ~= nil do
+		local t = string.match(fileStr, '(' .. index .. ', %d+, %d+)')
+		local u = tonumber(string.match(t, ', (%d+),'))
+		node = {u, math.huge, nil}
+		listOfNodes[u] = node
+		if u > maxValue then
+			maxValue = u
+		end
+		index = index + 1
+	end
+	print("maxValue: "..maxValue)
+	return listOfNodes
+  end
+
+  function getNeighbors(fileStr, node)
+	local fileCost = io.open("2_costRouting.lp")
+	local fileCostStr = fileCost:read("*all")
+
+	local target = getTarget()
+	local neighborList = {}
+	local subStr = fileStr
+	while string.match(subStr, '(%d+, '..node..', %d+)') ~= nil do
+		local t = string.match(subStr, '(%d+, '..node..', %d+)')
+		local graphIndex = tonumber(string.match(t, '%d+'))
+		local neighborIndex = tonumber(string.match(t, ', %d+, (%d+)'))
+		local cost = string.match(fileCostStr, graphIndex..', (%d+)') + GetHeuristicDistance(node, target)
+		local neighbor = {neighborIndex, cost}
+		neighborList[#neighborList+1] = neighbor
+
+		--reduce string and delete current instance
+		x,y = string.find(subStr, '(%d+, '..node..', %d+)')
+		subStr = string.sub(subStr, y+1, string.len(subStr))
+	end
+
+	fileCost:close()
+	return neighborList
+end
+
+
+
+function GetHeuristicDistance (nodeA, nodeB)
+
+	local fileCoo = io.open("2_cooRouting.lp")
+	local fileCooStr = fileCoo:read("*all")
+
+	local xcooA = string.match(fileCooStr, nodeA..';(%S+);%S+;%S+')
+	local ycooA = string.match(fileCooStr, nodeA..';%S+;(%S+);%S+')
+	local zcooA = string.match(fileCooStr, nodeA..';%S+;%S+;([%P.]+)')
+	local xcooB = string.match(fileCooStr, nodeB..';(%S+);%S+;%S+')
+	local ycooB = string.match(fileCooStr, nodeB..';%S+;(%S+);%S+')
+	local zcooB = string.match(fileCooStr, nodeB..';%S+;%S+;([%P.]+)')
+	fileCoo:close()
+	return math.sqrt(math.pow(xcooB-xcooA,2) + math.pow(ycooB-ycooA,2) + math.pow(zcooB-zcooA,2))
+end
+
+
+function IDA(fileStr, source, target)
+	local start = os.clock()
+	local listOfNodes = getAllNodes(fileStr)
+	listOfNodes[source][2] = 0
+	local threshold = GetHeuristicDistance (source, target)
+	local currentnode = source
+	local NextThresholdList = {}
+	local openList = {}
+	table.insert(openList, 1, currentnode)
+	local path = {}
+	table.insert(path, 1, currentnode)
+	while currentnode ~= target do
+
+		while #openList>0 do
+		local currentneighbors = getNeighbors(fileStr, currentnode, listOfNodes)
+		for i = 1,#currentneighbors do
+		table.insert(openList, 1, i)
+		if pathlength(path) + GetHeuristicDistance(currentnode, target) <= threshold then   -----if costof path + GetHeuristicDistance(currentnode, target) < threshold then
+			table.insert(path, 1, currentnode)
+	           openList[1] = currentnode
+
+		else table.insert(NextThresholdList, pathlength(path) + GetHeuristicDistance(currentnode, target))
+		table.remove(OpenList, 1)
+		print('NextThresholdList[1]:' ..NextThresholdList[1])
+		table.sort(NextThresholdList)
+		local threshold = threshold + NextThresholdList[1]
+		end
+
+	for i=1,#NextThresholdList do table.remove(NextThresholdList[i]) end
+	if currentnode ~= target then
+		for i=1,#path do table.remove(path, i)
+		end
+	end
+	end
+	end
+	for p=1,#path do
+	print('path:' ..path[p])
+	end
+	print('time: '..os.clock()-start..' seconds')
+	fileStr:close()
+end
+end
+
+
+
+
+function pathlength(table, fileStr)
+	local fileCost = io.open("2_costRouting.lp")
+	local fileCostStr = fileCost:read("*all")
+
+	local subsumString = fileStr
+	local sum = 0
+
+	if #table <2 then return 0 else
+
+	for s=1,#table do
+
+		local r = string.match(subStr, '(%d+, '..table[1]..','.. table[2]')')
+		local graphIndex = tonumber(string.match(t, '%d+'))
+		local sum = sum + string.match(fileCostStr, graphIndex..', (%d+)') + GetHeuristicDistance(node, getTarget())
+		s=s+1
+	end
+	fileCost:close()
+	end
+	return sum
+end
+
+
+
+
+
+function getSource()
+	local fileinst = io.open("2_instRouting.lp")
+	local fileStr = fileinst:read("*all")
+	return tonumber(string.match(fileStr, '(%d+)'))
+end
+
+function getTarget()
+	local file = io.open("2_instRouting.lp")
+	local fileStr = file:read("*all")
+	return tonumber(string.match(fileStr, "end = (%d+)"))
+
+end
+
+prg = nil
+
+--function main(program)
+	--graph file
+	local file = io.open ("2_graphRouting.lp")
+	local fileStr = file:read("*all")
+
+	local source = getSource()
+	local target = getTarget()
+	IDA(fileStr, source, target)
+
+
+
+
